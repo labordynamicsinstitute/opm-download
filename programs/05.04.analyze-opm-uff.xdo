@@ -1,0 +1,20 @@
+/* $Id$ */
+/* $URL$ */
+/* run in Xstata */
+#delimit;
+do config.do;
+
+set mem 1g;
+use $outputs/opmpu_us_uff, clear;
+keep if _type_==11 | _type_==15;
+gen diff =  b+a-s -e;
+gen diffpercent=abs(diff/ebar);
+gen logdiffpercent = log(diffpercent);
+sum diffpercent logdiffpercent;
+label var logdiffpercent "Log of absolute percentage deviation from flow identity";
+qui sum logdiffpercent ;
+local diffmean=r(mean);
+histogram logdiff, bin(45) normal xline(`diffmean', extend) xlabel(-10 `diffmean' 0);
+
+graph save opmpu_flowids, replace;
+graph export opmpu_flowids.png, replace width(1600);

@@ -1,0 +1,83 @@
+/* $Id$ */
+/* $URL$ */
+
+/* This program is a Stata program.
+   As it stands, it is primarily a ad-hoc program,
+   used to assess what the time series looks like
+   when taking naive imputes of ratio (simple 
+   carry-forwards) for quarters in which the
+   ratio of QCEW to OPM public use data is not available.
+
+   It can be adjusted to a SAS program and incorporated
+   into a proper QA later.
+*/
+#delimit;
+run config.do;
+/* REQUIRES: nbercyles */
+qui net install nbercycles, from(http://fmwww.bc.edu/RePEc/bocode/n);
+
+use $outputs/opmpu_us_imputed.dta ;
+qui capture drop qtime;
+gen qtime=yq(year,quarter);
+preserve;
+/* collapse this to get mean median max min */
+collapse (mean) mean_ratio_emp_month1 =ratio_emp_month1 (median) p50_ratio_emp_month1 =ratio_emp_month1 
+         (p95) max_ratio_emp_month1 =ratio_emp_month1 (p5) min_ratio_emp_month1 =ratio_emp_month1, by(qtime);
+
+
+tsset qtime, quarterly;
+qui sum max_ratio_emp_month1;
+scalar define maxy=r(max);
+local ymax=r(max);
+
+drop if mean_ratio_emp_month1 == .;
+
+label var p50_ratio_emp_month1 "Median ratio across states";
+label var max_ratio_emp_month1 "Min/max of ratio across states";
+
+* nbercycles ratio_emp_month1 , file(opm_plot.do)  ;
+twoway function y=maxy,range(164 167) recast(area) color(gs12) base(.0) || 
+function y=maxy,range(191 197) recast(area) color(gs12) base(.0) || 
+tsline p50_ratio_emp_month1, lcolor(blue) ||
+tsline max_ratio_emp_month1, lcolor(gs10) ||
+tsline min_ratio_emp_month1, lcolor(gs10 ) xlabel(,format(%tq)) 
+  legend(order(3 4 1 "Recession")) 
+  ylabel(0(0.1)`ymax');
+
+graph save "opm_plot_ratio", replace;
+graph export "opm_plot_ratio.png", replace;
+
+/*------------*/
+restore;
+destring state, replace;
+collapse (sum)  opmpu_emp_month1 bls_emp_month1 (max) flag_opmpu_imputed, by(qtime);
+
+replace opmpu_emp_month1=. if opmpu_emp_month1<1;
+gen imputed =.;
+replace imputed=opmpu_emp_month1+1500 if flag_opmpu_imputed == 3;
+
+/* scale employment numbers */
+replace opmpu_emp_month1=opmpu_emp_month1/1000;
+replace bls_emp_month1 = bls_emp_month1/1000;
+replace imputed = imputed/1000;
+
+label variable imputed  "Imputed values";
+label variable opmpu_emp_month1 "OPM employment";
+label variable bls_emp_month1 "QCEW employment month1";
+
+qui sum bls_emp_month1;
+scalar define ymax=r(max);
+local ymax=r(max);
+di "ymax=`ymax'";
+
+tsset  qtime, quarterly;
+twoway function y=ymax,range(164 167) recast(area) color(gs12) base(.0) || 
+function y=ymax,range(191 197) recast(area) color(gs12) base(.0) || 
+tsline opmpu_emp_month1 bls_emp_month1, lcolor(blue dkgreen)||
+scatter imputed qtime, msymbol(+) color(black) 
+  xlabel(,format(%tq)) legend(order(3 4 5 1 "Recession"  )) 
+  ylabel(0(500)`ymax')
+  ytitle("Employment (1000s)");
+
+graph save "opm_plot_levels", replace;
+graph export "opm_plot_levels.png", replace;

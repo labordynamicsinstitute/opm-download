@@ -1,0 +1,69 @@
+/* $Id$ */
+/* $URL$ */
+/* run in Xstata */
+#delimit;
+do config.do;
+
+set mem 1g;
+use $opmqa/opm_opm, clear;
+drop if state=="AQ" | 
+        state=="CQ" | 
+        state=="GQ" | 
+        state=="RQ" | 
+        state=="VQ" |
+        state=="US";
+keep if _merge==3;
+gen qtime=yq(year,quarter);
+format  qtime %tq;
+
+graph  box opm_ex_e opm_ex_w, 
+	over(qtime, label(angle(vertical)) )
+        legend(order(1 2) cols(1)) 
+	yscale(range(0(0.1)1))
+	ylabel(0(0.2)1)
+	;
+graph save $opmqa/opm_opm, replace;
+graph export $opmqa/opm_opm.png, replace width(1600);
+
+use $opmqa/opm_qcew, clear;
+drop if state=="AQ" | 
+        state=="CQ" | 
+        state=="GQ" | 
+        state=="RQ" | 
+        state=="VQ" |
+        state=="US";
+keep if _merge==7;
+qui capture drop qtime;
+gen qtime=yq(year,quarter);
+format  qtime %tq;
+
+graph box opm_e_qcew_e opm_e_qcew_b_p1 opm_w_qcew_w, 
+	over(qtime, label(angle(vertical)) )
+        legend(order(1 2 3) cols(1)) 
+	yscale(range(0(0.1)1))
+	ylabel(0(0.2)1)
+	;
+graph save $opmqa/opm_qcew, replace;
+graph export $opmqa/opm_qcew.png, replace width(1600);
+
+
+use $opmqa/opmx_qcew, clear;
+drop if state=="AQ" | 
+        state=="CQ" | 
+        state=="GQ" | 
+        state=="RQ" | 
+        state=="VQ" |
+        state=="US";
+keep if _merge==7;
+capture drop qtime;
+gen qtime=yq(year,quarter);
+format  qtime %tq;
+
+graph box opm_e_qcew_e opm_e_qcew_b_p1 opm_w_qcew_w, 
+	over(qtime, label(angle(vertical)) )
+        legend(order(1 2 3) cols(1)) 
+	yscale(range(0(0.1)1))
+	ylabel(0(0.2)1)
+	;
+graph save $opmqa/opmx_qcew, replace;
+graph export $opmqa/opmx_qcew.png, replace width(1600);
