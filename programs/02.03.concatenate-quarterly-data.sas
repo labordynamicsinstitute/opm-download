@@ -28,7 +28,7 @@ data files;
 run;
 
 proc sort data=files;
-by sasname;
+by descending sasname;
 run;
 
 proc print data=files;
